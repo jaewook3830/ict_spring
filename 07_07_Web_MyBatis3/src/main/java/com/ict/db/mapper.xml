@@ -5,7 +5,22 @@
  
 <!-- mapper가 여러개 일때 namespace 로 구분한다. -->
 <mapper namespace="members">
-	
+	<select id="list" parameterType="Map" resultType="com.ict.db.VO">
+		<!-- 
+		select * from members where idx = #{idx}
+		select * from members where id = #{id}
+		select * from members where name = #{name}
+		select * from members where age = #{age} 
+		-->
+		select * from members
+		<choose>
+			<when test="search==1"> where idx = #{keyword} </when>
+			<when test="search==2"> where id = #{keyword} </when>
+			<when test="search==3"> where lower(name) like '%' || #{keyword} || '%' </when>
+			<when test="search==4"> where age >= #{keyword} </when>
+		</choose>
+		order by idx
+	</select>
 </mapper>
 
 

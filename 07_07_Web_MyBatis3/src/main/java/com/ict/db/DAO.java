@@ -1,6 +1,8 @@
 package com.ict.db;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.mybatis.spring.SqlSessionTemplate;
 
@@ -12,6 +14,12 @@ public class DAO {
 		this.sqlSessionTemplate = sqlSessionTemplate;
 	}
 	
-	// DB 처리하는 메소드들 (SqlSession과 같음)
-	
+	public List<VO> getDynamic(String search, String keyword){
+		List<VO> list = null;
+		Map<String, String> map = new HashMap<String, String>();
+		map.put("search", search);
+		map.put("keyword", keyword);
+		list = sqlSessionTemplate.selectList("list", map);
+		return list;
+	}
 }
