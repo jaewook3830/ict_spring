@@ -23,10 +23,12 @@ public class HelloController {
 		return mv;
 	}
 	*/
+	/*
 	@RequestMapping(value = "hello.do")
 	public ModelAndView Hello3Command() {
 		ModelAndView mv = new ModelAndView("result");
 		mv.addObject("msg", "GET, POST 모두 다");
 		return mv;
 	}
+	*/
 }

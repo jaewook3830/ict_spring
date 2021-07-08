@@ -7,10 +7,12 @@ import org.springframework.web.servlet.ModelAndView;
 
 @Controller
 public class HiController {
+	/*
 	@RequestMapping(value = "hi.do", method = RequestMethod.GET)
 	public ModelAndView HiCommand() {
 		ModelAndView mv = new ModelAndView("result");
 		mv.addObject("msg", "Welcome Spring MVC");
 		return mv;
 	}
+	*/
 }
