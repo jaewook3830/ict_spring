@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+ "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<!-- mapper가 여러개 일때 namespace 로 구분한다. -->
+<mapper namespace="board">
+	<!-- 전체 게시물 수 -->
+	<select id="count" resultType="int">
+		select count(*) from board
+	</select>
+	
+	<!-- 시작번호와 끝번호를 받아서 해당 리스트 출력   -->
+	<select id="list" parameterType="Map" resultType="com.ict.vo.VO">
+		select * from (
+			select rownum r_num, a.* from (
+				select * from board order by idx desc
+			) a
+		) where r_num between #{begin} and #{end}
+	</select>
+	
+	<!-- 삽입 -->
+	<insert id="insert" parameterType="com.ict.vo.VO">
+		insert into board values(board_seq.nextval, #{writer}, #{title}, #{content}, #{pwd}, 0, group_seq.nextval, 0, 0, sysdate, #{file_name})
+	</insert>
+	
+	<!-- 상세보기 -->
+	<select id="onelist" parameterType="String" resultType="com.ict.vo.VO">
+		select * from board where idx=#{idx}
+	</select>
+	
+	<!-- 비번 확인 -->
+	<select id="pwd_chk" parameterType="com.ict.vo.VO" resultType="int">
+		select count(*) from board where idx=#{idx} and pwd=#{pwd}
+	</select>
+	
+	<!-- 원글 삭제 -->
+	<delete id="delete" parameterType="String">
+		delete from board where idx = #{idx}
+	</delete>
+	
+	<update id="update" parameterType="com.ict.vo.VO">
+		update board set writer=#{writer}, title=#{title}, content=#{content}, file_name=#{file_name} where idx=#{idx} 
+	</update>
+</mapper>

@@ -1,0 +1,246 @@
+package com.ict.controller;
+
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.net.URLEncoder;
+import java.util.List;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Controller;
+import org.springframework.util.FileCopyUtils;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.ModelAndView;
+
+import com.ict.service.MyService;
+import com.ict.service.Paging;
+import com.ict.vo.VO;
+
+@Controller
+public class MyController {
+	@Autowired
+	private MyService myService;
+	@Autowired
+	private Paging paging;
+	
+	@RequestMapping("list.do")
+	public ModelAndView getListCommand(@ModelAttribute("cPage")String cPage) {
+		try {
+			ModelAndView mv = new ModelAndView("list");
+			// 전체 게시물의 수
+			int count = myService.selectCount();
+			paging.setTotalRecord(count);
+			
+			// 전체 페이지의 수
+			if(paging.getTotalRecord() <= paging.getNumPerPage()) {
+				paging.setTotalPage(1);
+			}else {
+				paging.setTotalPage(paging.getTotalRecord()/paging.getNumPerPage());
+				// 나머지가 존재하면 전체 페이지수에서 1증가 
+				if(paging.getTotalRecord()%paging.getNumPerPage() !=0) {
+					paging.setTotalPage(paging.getTotalPage()+1);
+				}
+			}
+			
+			// 현재 페이지 구하기 
+			paging.setNowPage(Integer.parseInt(cPage));
+			
+			// 시작번호, 끝번호 
+			paging.setBegin((paging.getNowPage()-1) * paging.getNumPerPage() + 1);
+			paging.setEnd((paging.getBegin()-1) + paging.getNumPerPage());
+			
+			// 시작블록, 끝블록
+			paging.setBeginBlock((int)((paging.getNowPage()-1) / paging.getPagePerBlock()) * paging.getPagePerBlock() +1);
+			paging.setEndBlock(paging.getBeginBlock() + paging.getPagePerBlock() - 1);
+			
+			// 주의사항 : endBlock 이 totalPage 보다 큰 경우 발생 할 수 있다.
+			//            이 경우 endBlock를 totalPage에 맞춰야 한다.
+			if(paging.getEndBlock() > paging.getTotalPage()) {
+				paging.setEndBlock(paging.getTotalPage());
+			}
+			
+			// 시작 번호와 끝번호를 이용해서 list를 구하자
+			List<VO> list = myService.selectList(paging.getBegin(), paging.getEnd());
+			
+			mv.addObject("list", list);
+			mv.addObject("pvo", paging);
+			return mv;
+		} catch (Exception e) {
+			System.out.println(e);
+			return new ModelAndView("error");
+		}
+	}
+	
+	@RequestMapping("write.do")
+	public ModelAndView writeCommand(@ModelAttribute("cPage")String cPage) {
+		return new ModelAndView("write");
+	}
+	
+	@RequestMapping(value = "write_ok.do", method = RequestMethod.POST)
+	public ModelAndView writeOkCommand(VO vo, HttpServletRequest request, 
+			@ModelAttribute("cPage")String cPage) {
+		try {
+			String path = request.getSession().getServletContext().getRealPath("/resources/upload");
+			MultipartFile file = vo.getF_name();
+			if(file.isEmpty()) {
+				vo.setFile_name("");
+			}else {
+				vo.setFile_name(file.getOriginalFilename());
+			}
+			int result = myService.insertVO(vo);
+			if(result>0) {
+				if(! vo.getFile_name().isEmpty()) {
+					byte[] in = file.getBytes();
+					File out = new File(path, vo.getFile_name());
+					FileCopyUtils.copy(in, out);
+				}
+				return new ModelAndView("redirect:list.do?cPage="+cPage);
+			}else{
+				return new ModelAndView("redirect:write.do?cPage="+cPage);
+			}
+		} catch (Exception e) {
+			System.out.println(e);
+			return new ModelAndView("redirect:write.do?cPage="+cPage);
+		}
+	}
+	
+	@RequestMapping("onelist.do")
+	public ModelAndView oneListCommand(@RequestParam("idx")String idx,
+			@ModelAttribute("cPage")String cPage) {
+		try {
+			ModelAndView mv = new ModelAndView("onelist");
+			
+			// 조회수 업데이트 및 상세보기
+			VO vo = myService.selectVOOneList(idx);
+			
+			mv.addObject("vo", vo);
+			return mv;
+		} catch (Exception e) {
+			System.out.println(e);
+			return null;
+		}
+	}
+	
+	@RequestMapping("delete.do")
+	public ModelAndView deleteCommand(@ModelAttribute("cPage")String cPage,
+			@ModelAttribute("idx")String idx) {
+		return new ModelAndView("delete");
+	}
+	
+	@RequestMapping(value="pwd_ck.do", produces = "text/html; charset=utf-8")
+	@ResponseBody
+	public String pwd_chkCommand(@ModelAttribute("pwd")String pwd,
+			@ModelAttribute("idx")String idx){
+		try {
+			VO vo = new VO();
+			
+			vo.setIdx(idx);
+			vo.setPwd(pwd);
+		
+			int result = myService.selectPwdchk(vo);
+			
+			return String.valueOf(result);
+		} catch (Exception e) {
+			System.out.println(e);
+			return null; 
+		}
+	}
+	@RequestMapping("delete_ok.do")
+	public ModelAndView deleteOKCommand(@ModelAttribute("cPage")String cPage,
+			@ModelAttribute("idx")String idx) {
+		try {
+			int result = myService.deleteVO(idx);
+			return new ModelAndView("redirect:list.do?cPage="+cPage);
+		} catch (Exception e) {
+		}
+		return null;
+	}
+	
+	@RequestMapping("update.do")
+	public ModelAndView updateCommand(@ModelAttribute("cPage")String cPage,
+			@ModelAttribute("idx")String idx) {
+		try {
+			ModelAndView mv = new ModelAndView("update");
+			VO vo = myService.selectVOOneList(idx);
+			mv.addObject("vo", vo);
+			return mv;
+		} catch (Exception e) {
+		}
+		return null;
+	}
+	
+	@RequestMapping(value = "update_ok.do", method = RequestMethod.POST)
+	public ModelAndView updateOKCommand(VO vo, @RequestParam("cPage")String cPage,
+			HttpServletRequest request) {
+		try {
+			String path = request.getSession().getServletContext().getRealPath("/resources/upload");
+			MultipartFile file = vo.getF_name();
+			String old_file_name = request.getParameter("old_file_name");
+			if(old_file_name == null) {	// 이전 파일이 없을때
+				if(file.isEmpty()) {	// 현재 파일이 없을때
+					vo.setFile_name("");
+				}else {
+					vo.setFile_name(file.getOriginalFilename());
+				}
+			}else {						// 이전 파일이 있을때
+				if(file.isEmpty()) {	// 현재 파일이 없을 때
+					vo.setFile_name(old_file_name);
+				}else {
+					vo.setFile_name(file.getOriginalFilename());
+				}
+			}
+			int result = myService.updateVO(vo);
+			if(!file.isEmpty()) {
+				byte[] in = file.getBytes();
+				File out = new File(path, vo.getFile_name());
+				FileCopyUtils.copy(in, out);
+			}
+			return new ModelAndView("redirect:onelist.do?idx="+vo.getIdx()+"&cPage="+cPage);
+		} catch (Exception e) {
+		}
+		return null;
+	}
+	
+	@RequestMapping("download.do")
+	public void downCommand(@RequestParam("file_name")String file_name, HttpServletRequest request,
+			HttpServletResponse response) {
+		FileInputStream fis = null;
+		BufferedInputStream bis = null;
+		BufferedOutputStream bos = null;
+		try {
+			String path = request.getSession().getServletContext().getRealPath("/resources/upload/"+file_name);
+			response.setContentType("application/x-msdownload");
+			response.setHeader("Content-Disposition", "attachment; filename="+URLEncoder.encode(file_name,"utf-8"));
+			File file = new File(new String(path.getBytes("utf-8")));
+			fis = new FileInputStream(file);
+			bis = new BufferedInputStream(fis);
+			bos = new BufferedOutputStream(response.getOutputStream());
+			
+			FileCopyUtils.copy(bis, bos);
+		} catch (Exception e) {
+			// TODO: handle exception
+		} finally {
+			try {
+				bos.close();
+				bis.close();
+				fis.close();
+			} catch (Exception e2) {
+				// TODO: handle exception
+			}
+		}
+	}
+	
+	@RequestMapping("ans_write.do")
+	public ModelAndView ansWriteCommand(@ModelAttribute("cPage")String cPage) {
+		return new ModelAndView("ans_write");
+	}
+}
